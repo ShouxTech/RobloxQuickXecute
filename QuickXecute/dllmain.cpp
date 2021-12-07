@@ -22,22 +22,22 @@ constexpr const char* BYTECODE = "01 02 05 70 72 69 6E 74 0B 68 65 6C 6C 6F 20 7
 std::uintptr_t base_address;
 std::uintptr_t L;
 
-std::uintptr_t scan(std::uintptr_t VFTableAddress) {
-    SYSTEM_INFO systemInfo;
-    MEMORY_BASIC_INFORMATION memoryInfo;
-    GetSystemInfo(&systemInfo);
+std::uintptr_t scan(std::uintptr_t vftable_address) {
+    SYSTEM_INFO system_info;
+    MEMORY_BASIC_INFORMATION memory_info;
+    GetSystemInfo(&system_info);
 
-    std::uintptr_t pageSize = systemInfo.dwPageSize;
-    std::uintptr_t* buffer = new std::uintptr_t[pageSize];
+    std::uintptr_t page_size = system_info.dwPageSize;
+    std::uintptr_t* buffer = new std::uintptr_t[page_size];
 
-    std::uintptr_t targetAddressMemoryLocation = reinterpret_cast<std::uintptr_t>(&VFTableAddress);
+    std::uintptr_t target_address_memory_location = reinterpret_cast<std::uintptr_t>(&vftable_address);
 
-    for (std::uintptr_t addr = base_address; addr < 0x7FFFFFFF; addr += pageSize) {
-        VirtualQuery(reinterpret_cast<LPCVOID>(addr), &memoryInfo, pageSize);
-        if (memoryInfo.Protect == PAGE_READWRITE) {
-            std::memcpy(buffer, reinterpret_cast<void*>(addr), pageSize);
-            for (std::uintptr_t i = 0; i <= pageSize / 4; i++) {
-                if (buffer[i] == VFTableAddress) {
+    for (std::uintptr_t addr = base_address; addr < 0x7FFFFFFF; addr += page_size) {
+        VirtualQuery(reinterpret_cast<LPCVOID>(addr), &memory_info, page_size);
+        if (memory_info.Protect == PAGE_READWRITE) {
+            std::memcpy(buffer, reinterpret_cast<void*>(addr), page_size);
+            for (std::uintptr_t i = 0; i <= page_size / 4; i++) {
+                if (buffer[i] == vftable_address) {
                     std::uintptr_t address = static_cast<std::uintptr_t>(addr + (i * 4));
                     delete[] buffer;
                     return address;
@@ -104,12 +104,12 @@ int main() {
     spawn = reinterpret_cast<spawn_t>(base_address + SPAWN_OFFSET);
 
     std::string bytecode = hex_to_string(std::string(BYTECODE));
-
     const char* bytecode_cstr = bytecode.c_str();
     std::size_t bytecode_length = bytecode.length();
 
     std::uintptr_t scriptcontext = scan(base_address + SCRIPTCONTEXT_OFFSET);
-    L = (unsigned int)(reinterpret_cast<std::uintptr_t*>(scriptcontext) + STATE_OFFSET) ^ reinterpret_cast<std::uintptr_t*>(scriptcontext)[STATE_OFFSET];
+    L = reinterpret_cast<std::uintptr_t>(reinterpret_cast<std::uintptr_t*>(scriptcontext) + STATE_OFFSET)
+        ^ reinterpret_cast<std::uintptr_t*>(scriptcontext)[STATE_OFFSET];
 
     deserialize_wrapper(L, CHUNK_NAME, bytecode_cstr, bytecode_length);
     spawn_wrapper(L);
